@@ -1,11 +1,11 @@
 function main()
 {
-	let canvas = document.getElementById("mainCanvas"); 
-	let ctx = canvas.getContext("2d"); 
-	canvas.width = $("body").width();
-	canvas.height = $("body").height();
-	ctx.fillStyle = "black";
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	// let canvas = document.getElementById("mainCanvas"); 
+	// let ctx = canvas.getContext("2d"); 
+	// canvas.width = $("body").width();
+	// canvas.height = $("body").height();
+	// ctx.fillStyle = "black";
+	// ctx.fillRect(0, 0, canvas.width, canvas.height);
 	let system = {
         sun : {
             draw : (x, y) => {
@@ -37,12 +37,20 @@ function main()
 		},
 
 		moon : {
-			draw : (x, y) => {
-				ctx.beginPath();
-				ctx.fillStyle = "grey"; 
-				ctx.arc(x, y, 10, 0, Math.PI * 2);
-				ctx.fill();
-				ctx.closePath();
+			draw : canvas => {
+        console.log($(canvas).width());
+				$(canvas).drawArc({
+          fillStyle: 'black',
+          x: 20, 
+          y: 20,
+          radius : 20,
+          //fromCenter : false,
+        });
+        // ctx.beginPath();
+				// ctx.fillStyle = "grey"; 
+				// ctx.arc(0, 0, 10, 0, Math.PI * 2);
+				// ctx.fill();
+				// ctx.closePath();
 			},
 
 			getCoords : t => {
@@ -53,72 +61,56 @@ function main()
 		}
 	};
 
-	/*let p1 = new SpaceObject(ctx, (t) => {
-		let x = Math.cos(t / 2) * 100;
-		let y = Math.sin(t / 2) * 100;		
-		return {x : x, y : y};
-		},
-		[
-			new SpaceObject
-			(
-				ctx, 
-				(t) => {
-					let x = Math.cos(t) * 50;
-					let y = Math.sin(t) * 50;		
-					return {x : x, y : y};  	
-				},
-				[ 
-					new SpaceObject(ctx, (t) => {
-						let x = Math.cos(t * 2) * 30;
-						let y = Math.sin(t * 2) * 30;		
-						return {x : x, y : y};
-					})  	
-				]
-			)
-		]
-	);*/
-	//let p2 = new SpaceObject(4000, 30, ctx, () => 50);
-    let sun = new SpaceObject(
-        system.sun.getCoords, 
-        system.sun.draw,
-        new SpaceObject(() => { return {x : 300, y : 300} } , undefined, undefined, undefined, 300, 300)
-    );
-    let earth = new SpaceObject(
-        system.earth.getCoords, 
-        system.earth.draw,
-        sun
-    );
-    let moon = new SpaceObject(system.moon.getCoords, system.moon.draw, earth);
-    earth.addSatellites([moon]);
+  let dr1 = new CanvasDrawingObject(canvas => {
+    canvas.width = 40;
+    canvas.height = 50;
+    $(canvas).drawArc({
+      fillStyle: 'grey',
+      x: 20, 
+      y: 20,
+      radius : 20,
+    });
+    $(canvas).on("click", () => console.log("pizda"));
+  });
 
-    sun.addSatellites([earth]);
+  let dr2 = new CanvasDrawingObject(canvas => {
+    canvas.width = 30;
+    canvas.height = 30;
+    $(canvas).drawArc({
+      fillStyle: 'red',
+      x: 15, 
+      y: 15,
+      radius : 15,
+    });
+  });
 
-    pl = [
-        sun
-    ];
+  let planet2 = new SpaceObject({
+    drawingObj : dr2,
+    getDecCoords : system.moon.getCoords,
+  });
+
+  let planet1 = new SpaceObject({
+    drawingObj : dr1,
+    parrent : { x : 300, y : 300 },
+    getDecCoords : system.earth.getCoords,
+    satellites : [ planet2 ]
+  });
+
+  // let planet2 = new SpaceObject({
+  //   parrent : { x : 300, y : 400 },
+  // }); 
 	requestAnimationFrame(function anim(time){
 	   //angle += (time - prev) * 0.002;
-	   ctx.fillStyle = "black";
-	   ctx.fillRect(0, 0, canvas.width, canvas.height);
+	   //ctx.fillStyle = "black";
+	   //ctx.fillRect(0, 0, canvas.width, canvas.height);
 	   //ctx.clearRect(0, 0, 100, 100);
-	   pl.forEach(planet => {
-	   	planet.move(time * 0.002);
-	   });
+	   
+	  planet1.move(time * 0.002);
+    //planet2.move(time * 0.002);
+	   
 
 	   requestAnimationFrame(anim);
 	});
-}
-
-
-/**
- *
- * @param u - the gravity parameter
- * @param r - the distance between central object and rotating object
- * @param a - the length of Semi-major axe of ellipse
- */
-function getOrbitalSpeed(u, r, a) 
-{
-	return Math.sqrt( u * (2 / r - 1 / a) );
 }
 
 /**
@@ -131,56 +123,83 @@ function getOrbitalSpeed(u, r, a)
  * that are satellites of this object
  */
 class SpaceObject {
-	constructor(
-        getDecCoords = () => { return { x : 0, y : 0 }; }, 
-        draw = () => {}, 
-        parrent/* = new SpaceObject()*/,
-        satellites = [],
-        x = 0,
-        y = 0) 
-    {
-		this._x = x;
-		this._y = y;
-		this.getDecCoords = getDecCoords;
-		this.draw = draw;
-        this.parrent = parrent;
-		this.satellites = satellites;
-		//this.ctx = ctx;
-	}
-
-	/*draw() {	
-
-	}*/
-
-	move(t, centX, centY) {
-		//this.hide();
-		let {x, y} = this.getDecCoords(t);
-		this._x = x + this.parrent._x;
-		this._y = y + this.parrent._y;
-		this.satellites.forEach((sat) => {
-			sat.move(t, this._x, this._y);
-		});
-		this.draw(this._x, this._y);
-	}
-
-    addParent(parrent) {
-        this.parrent = parrent;
+  constructor({
+    drawingObj = new CanvasDrawingObject(),
+    getDecCoords = () => { return { x : 0, y : 0 }; }, 
+    parrent = { x : 0, y : 0 },
+    satellites = [],
+  }) 
+  {
+  	this.getDecCoords = getDecCoords;
+    if (!(drawingObj instanceof AbstractDrawingObject)) {
+      throw new Error("It is not instanceof AbstractDrawingObject");
     }
+    this._drawingObj = drawingObj;
+    this._parrent = parrent;
+  	this._satellites = satellites;
 
-    addSatellites(satellites) {
-        this.satellites = satellites;
-    }
+    this._satellites.forEach(sat => {
+      sat.addParent(this);
+    });
+    this._drawingObj.draw();
+  }
+
+  get x() { return this._drawingObj.x; }
+  get y() { return this._drawingObj.y; }
+
+  move(t) {
+  	//this.hide();
+  	let {x, y} = this.getDecCoords(t);
+  	this._drawingObj.x = x + this._parrent.x;
+  	this._drawingObj.y = y + this._parrent.y;
+  	this._satellites.forEach((sat) => {
+  		sat.move(t);
+  	});
+  }
+
+  addParent(parrent) {
+    this._parrent = parrent;
+  }
+
+  addSatellites(satellites) {
+    this._satellites = satellites;
+  }
+}//class SpaceObject
+
+
+class AbstractDrawingObject {
+  constructor() {}
+
+  get x() {return 0;}
+  get y() {return 0;}
+  set x(value) {}
+  set y(value) {}
+  draw() {}
 }
 
-/*class Earth extends SpaceObject {
-	draw() {
-		this.ctx.beginPath();
-		this.ctx.fillStyle = "blue"; 
-		this.ctx.arc(this._x, this._y, 20, 0, Math.PI * 2);
-		this.ctx.fill();
-		this.ctx.closePath();
-	}
-}*/
+
+class CanvasDrawingObject extends AbstractDrawingObject {
+  constructor(drawCanvasFunc = () => {}) {
+    super();
+    this._drawCanvasFunc = drawCanvasFunc;
+    this._canvas = document.createElement("canvas");
+    $(this._canvas).css("position", "absolute");
+    this._drawCanvasFunc(this._canvas);
+  }
+
+  get x() { return $(this._canvas).position().left; }
+
+  get y() { return $(this._canvas).position().top; }
+
+  set x(value) { $(this._canvas).css("left", value); }
+
+  set y(value) { return $(this._canvas).css("top", value); }
+
+  draw() {
+    this._drawCanvasFunc(this._canvas);
+    $("body").append(this._canvas);
+  }
+}
 
 main();
 
